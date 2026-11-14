@@ -126,6 +126,14 @@ jobs:
           echo "Coverage: $PERCENT%"
         id: badge
 
+      - name: Debug HTML structure
+        run: |
+          echo "=== Full HTML structure ==="
+          find target/llvm-cov/html -type f | head -50
+          echo ""
+          echo "=== Looking for index.html ==="
+          find target/llvm-cov/html -name "index.html" -type f
+
       - name: Prepare deployment directory
         run: |
           set -e
@@ -133,21 +141,40 @@ jobs:
 
           mkdir -p deploy/cov/$SHORT_SHA
 
-          if [ -d "target/llvm-cov/html" ]; then
-            cp -r target/llvm-cov/html deploy/cov/$SHORT_SHA/
-            mv deploy/cov/$SHORT_SHA/html deploy/cov/$SHORT_SHA/html_tmp
-            mv deploy/cov/$SHORT_SHA/html_tmp/* deploy/cov/$SHORT_SHA/
-            rmdir deploy/cov/$SHORT_SHA/html_tmp
-          else
-            echo "Warning: HTML directory not found, copying from output-dir"
-            cp -r target/llvm-cov deploy/cov/$SHORT_SHA/
+          # Find the actual index.html location
+          INDEX_PATH=$(find target/llvm-cov/html -name "index.html" -type f | head -1)
+
+          if [ -z "$INDEX_PATH" ]; then
+            echo "ERROR: index.html not found in target/llvm-cov/html"
+            find target/llvm-cov -type f
+            exit 1
           fi
 
+          echo "Found index.html at: $INDEX_PATH"
+
+          # Get the directory containing index.html
+          HTML_DIR=$(dirname "$INDEX_PATH")
+          echo "HTML directory: $HTML_DIR"
+
+          # Copy the entire HTML directory structure
+          cp -r "$HTML_DIR"/* deploy/cov/$SHORT_SHA/
           cp target/llvm-cov/coverage-badge.svg deploy/cov/$SHORT_SHA/badge.svg
 
+          # Verify index.html exists
+          if [ ! -f "deploy/cov/$SHORT_SHA/index.html" ]; then
+            echo "ERROR: index.html not copied correctly"
+            ls -la deploy/cov/$SHORT_SHA/
+            exit 1
+          fi
+
+          # Update latest
           rm -rf deploy/cov/latest || true
           cp -r deploy/cov/$SHORT_SHA deploy/cov/latest
 
+          # Add .nojekyll
+          touch deploy/.nojekyll
+
+          # Root redirect
           cat > deploy/index.html <<'ROOTEOF'
           <!DOCTYPE html>
           <html>
@@ -160,6 +187,8 @@ jobs:
           </body>
           </html>
           ROOTEOF
+
+          echo "✓ Deployment prepared successfully"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
