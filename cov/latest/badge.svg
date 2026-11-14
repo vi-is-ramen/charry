@@ -8,7 +8,7 @@
   </mask>
   <g mask="url(#a)">
     <path fill="#555" d="M0 0h62v20H0z"/>
-    <path fill="\#brightgreen" d="M62 0h58v20H62z"/>
+    <path fill="#4c1" d="M62 0h58v20H62z"/>
     <path fill="url(#b)" d="M0 0h120v20H0z"/>
   </g>
   <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
