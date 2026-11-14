@@ -1,0 +1,18 @@
+[package]
+name = "charry"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Low-RAM & generic UTF-8 decoder"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+categories = ["encoding", "parsing", "no-std", "text-processing"]
+keywords = ["utf8", "decoder", "no-std", "reader", "unicode"]
+repository = "https://github.com/vi-is-ramen/charry/"
+
+[dependencies]
+thiserror = "2.0.21"
+
+[features]
+default = [ "std" ]
+std = []
