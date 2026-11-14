@@ -3,6 +3,8 @@
 [![Crates.io](https://img.shields.io/crates/v/charry.svg)](https://crates.io/crates/charry)
 [![Docs.rs](https://docs.rs/charry/badge.svg)](https://docs.rs/charry)
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
+[![CI](https://github.com/vi-is-ramen/charry/actions/workflows/ci.yml/badge.svg)](https://github.com/vi-is-ramen/charry/actions/workflows/ci.yml)
+[![Coverage](https://vi-is-ramen.github.io/charry/cov/latest/badge.svg)](https://vi-is-ramen.github.io/charry/cov/latest/)
 
 `charry` provides [`CharIn`], a buffered UTF-8 decoder that wraps any byte-oriented
 reader and yields [`char`]s. It works in both `std` and `no_std` (with `alloc`)

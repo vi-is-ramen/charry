@@ -99,12 +99,13 @@ jobs:
           set -e
           PERCENT=$(jq -r '.data[0].totals.lines.percent // 0' target/llvm-cov/coverage.json | xargs printf "%.0f")
 
-          if [ "$PERCENT" -ge 90 ]; then COLOR="brightgreen"
-          elif [ "$PERCENT" -ge 75 ]; then COLOR="green"
-          elif [ "$PERCENT" -ge 60 ]; then COLOR="yellowgreen"
-          elif [ "$PERCENT" -ge 40 ]; then COLOR="yellow"
-          elif [ "$PERCENT" -ge 20 ]; then COLOR="orange"
-          else COLOR="red"; fi
+          # Use actual hex colors for SVG
+          if [ "$PERCENT" -ge 90 ]; then COLOR="#4c1"
+          elif [ "$PERCENT" -ge 75 ]; then COLOR="#97CA00"
+          elif [ "$PERCENT" -ge 60 ]; then COLOR="#a4a61d"
+          elif [ "$PERCENT" -ge 40 ]; then COLOR="#dfb317"
+          elif [ "$PERCENT" -ge 20 ]; then COLOR="#fe7d37"
+          else COLOR="#e05d44"; fi
 
           cat > target/llvm-cov/coverage-badge.svg <<EOF
           <svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
@@ -117,7 +118,7 @@ jobs:
             </mask>
             <g mask="url(#a)">
               <path fill="#555" d="M0 0h62v20H0z"/>
-              <path fill="${COLOR/#/\\#}" d="M62 0h58v20H62z"/>
+              <path fill="$COLOR" d="M62 0h58v20H62z"/>
               <path fill="url(#b)" d="M0 0h120v20H0z"/>
             </g>
             <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
@@ -129,7 +130,7 @@ jobs:
           </svg>
           EOF
 
-          echo "Coverage: $PERCENT%"
+          echo "Coverage: $PERCENT% (color: $COLOR)"
         id: badge
 
       - name: Prepare deployment directory
