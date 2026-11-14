@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features
+
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [stable, 1.85] # MSRV
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Run tests (all features)
+        run: cargo test --all-features
+
+      - name: Run tests (no_std)
+        run: cargo test --no-default-features
+
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@v2.9.1
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Generate coverage report (HTML)
+        run: cargo llvm-cov --all-features --html
+
+      - name: Generate coverage JSON
+        run: cargo llvm-cov --all-features --json > coverage.json
+
+      - name: Generate coverage badge
+        run: |
+          set -e
+          PERCENT=$(jq -r '.data[0].totals.lines.percent // 0' coverage.json | xargs printf "%.0f")
+
+          # Color based on coverage
+          if [ "$PERCENT" -ge 90 ]; then COLOR="brightgreen"
+          elif [ "$PERCENT" -ge 75 ]; then COLOR="green"
+          elif [ "$PERCENT" -ge 60 ]; then COLOR="yellowgreen"
+          elif [ "$PERCENT" -ge 40 ]; then COLOR="yellow"
+          elif [ "$PERCENT" -ge 20 ]; then COLOR="orange"
+          else COLOR="red"; fi
+
+          # Generate SVG badge using shields.io format (inline SVG)
+          cat > coverage-badge.svg <<EOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
+            <linearGradient id="b" x2="0" y2="100%">
+              <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+              <stop offset="1" stop-opacity=".1"/>
+            </linearGradient>
+            <mask id="a">
+              <rect width="120" height="20" rx="3" fill="#fff"/>
+            </mask>
+            <g mask="url(#a)">
+              <path fill="#555" d="M0 0h62v20H0z"/>
+              <path fill="${COLOR/#/\\#}" d="M62 0h58v20H62z"/>
+              <path fill="url(#b)" d="M0 0h120v20H0z"/>
+            </g>
+            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+              <text x="31" y="15" fill="#010101" fill-opacity=".3">coverage</text>
+              <text x="31" y="14">coverage</text>
+              <text x="90" y="15" fill="#010101" fill-opacity=".3">${PERCENT}%</text>
+              <text x="90" y="14">${PERCENT}%</text>
+            </g>
+          </svg>
+          EOF
+
+          echo "coverage_percent=$PERCENT" >> $GITHUB_OUTPUT
+          echo "Coverage: $PERCENT%"
+        id: badge
+
+      - name: Prepare deployment directory
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          FULL_SHA=$(git rev-parse HEAD)
+          mkdir -p deploy/cov/$SHORT_SHA
+          cp -r target/llvm-cov/html/* deploy/cov/$SHORT_SHA/
+          cp coverage-badge.svg deploy/cov/$SHORT_SHA/badge.svg
+
+          # Update latest symlink
+          rm -rf deploy/cov/latest || true
+          cp -r target/llvm-cov/html deploy/cov/latest
+          cp coverage-badge.svg deploy/cov/latest/badge.svg
+
+          # Add root index with redirect to latest
+          cat > deploy/index.html <<EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta http-equiv="refresh" content="0; url=cov/latest/index.html">
+            <title>charry coverage</title>
+          </head>
+          <body>
+            <p>Redirecting to <a href="cov/latest/index.html">latest coverage report</a>...</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./deploy
+          keep_files: true
+          destination_dir: .
+
+      - name: Output coverage URL
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          REPO=${{ github.repository }}
+          echo "::notice::Coverage report: https://${REPO/\//.github.io/}/cov/$SHORT_SHA/"
+          echo "::notice::Latest: https://${REPO/\//.github.io/}/cov/latest/"
+          echo "::notice::Badge: https://${REPO/\//.github.io/}/cov/latest/badge.svg"
