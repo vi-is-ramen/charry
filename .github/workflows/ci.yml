@@ -48,8 +48,9 @@ jobs:
       - name: Run tests (all features)
         run: cargo test --all-features
 
-      - name: Run tests (no_std)
-        run: cargo test --no-default-features
+      # Nonsense: tests are definitely `std` envronment and cannot run in no_std.
+      # - name: Run tests (no_std)
+      #   run: cargo test --no-default-features
 
   coverage:
     name: Code coverage
