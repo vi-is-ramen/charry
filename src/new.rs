@@ -23,7 +23,7 @@ impl<R: crate::io::Read + Unpin> crate::CharIn<R> {
         assert!(capacity >= 8, "capacity must be >= 8");
         Self {
             inner,
-            buf: vec![0u8; capacity].into_boxed_slice(),
+            buf: crate::alloc::vec![0u8; capacity].into_boxed_slice(),
             pos: 0,
             end: 0,
             eof: false,
