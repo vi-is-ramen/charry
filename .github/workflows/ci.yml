@@ -55,8 +55,14 @@ jobs:
   coverage:
     name: Code coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -87,7 +93,6 @@ jobs:
           set -e
           PERCENT=$(jq -r '.data[0].totals.lines.percent // 0' target/llvm-cov/coverage.json | xargs printf "%.0f")
 
-          # Color based on coverage
           if [ "$PERCENT" -ge 90 ]; then COLOR="brightgreen"
           elif [ "$PERCENT" -ge 75 ]; then COLOR="green"
           elif [ "$PERCENT" -ge 60 ]; then COLOR="yellowgreen"
@@ -95,7 +100,6 @@ jobs:
           elif [ "$PERCENT" -ge 20 ]; then COLOR="orange"
           else COLOR="red"; fi
 
-          # Generate SVG badge
           cat > target/llvm-cov/coverage-badge.svg <<EOF
           <svg xmlns="http://www.w3.org/2000/svg" width="120" height="20">
             <linearGradient id="b" x2="0" y2="100%">
@@ -127,10 +131,8 @@ jobs:
           set -e
           SHORT_SHA=$(git rev-parse --short HEAD)
 
-          # Create deployment structure
           mkdir -p deploy/cov/$SHORT_SHA
 
-          # Copy HTML report (entire directory, not glob)
           if [ -d "target/llvm-cov/html" ]; then
             cp -r target/llvm-cov/html deploy/cov/$SHORT_SHA/
             mv deploy/cov/$SHORT_SHA/html deploy/cov/$SHORT_SHA/html_tmp
@@ -138,18 +140,14 @@ jobs:
             rmdir deploy/cov/$SHORT_SHA/html_tmp
           else
             echo "Warning: HTML directory not found, copying from output-dir"
-            # Fallback: copy entire llvm-cov directory
             cp -r target/llvm-cov deploy/cov/$SHORT_SHA/
           fi
 
-          # Copy badge
           cp target/llvm-cov/coverage-badge.svg deploy/cov/$SHORT_SHA/badge.svg
 
-          # Update latest
           rm -rf deploy/cov/latest || true
           cp -r deploy/cov/$SHORT_SHA deploy/cov/latest
 
-          # Root redirect
           cat > deploy/index.html <<'ROOTEOF'
           <!DOCTYPE html>
           <html>
@@ -169,6 +167,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./deploy
           keep_files: true
+          force: true
 
       - name: Output coverage URL
         run: |
