@@ -11,6 +11,46 @@ impl<R: crate::io::Read + Unpin> crate::CharIn<R> {
         }
     }
 
+    /// Returns the buffered byte window without consuming it.
+    ///
+    /// When the window is exhausted (`pos == end`) and the stream is not at
+    /// EOF, the buffer is compacted and refilled toward capacity, so callers
+    /// that scan the slice directly (lexers, parsers) get large windows and
+    /// pay the backend cost once per window instead of once per byte.
+    ///
+    /// Pair with [`CharIn::consume`] to advance past scanned bytes. The
+    /// returned slice is invalidated by any subsequent mutating call
+    /// (`consume`, `skip`, `next`, `bnext`, `compact`, ...).
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Backend`] if the underlying reader fails.
+    #[inline]
+    pub fn fill_buf(&mut self) -> crate::Result<&[u8], R::Error> {
+        if self.pos == self.end && !self.eof {
+            self.compact();
+            let cap = self.buf.len();
+            let mut cursor = 0;
+            self.ensure_bytes(&mut cursor, cap)?;
+        }
+        Ok(&self.buf[self.pos..self.end])
+    }
+
+    /// Advances past `n` bytes of the current window.
+    ///
+    /// `n` must not exceed the length of the slice returned by the last
+    /// [`CharIn::fill_buf`] call. Unlike [`CharIn::skip`], this never reads
+    /// from the backend: the bytes are already buffered.
+    ///
+    /// # Panics
+    ///
+    /// Debug-asserts that `n <= end - pos`.
+    #[inline]
+    pub fn consume(&mut self, n: usize) {
+        debug_assert!(n <= self.end - self.pos, "consume past window");
+        self.pos += n;
+    }
+
     /// Ensures at least `needed` bytes are available starting from `cursor`.
     ///
     /// Handles buffer compaction when necessary and reads from the backend

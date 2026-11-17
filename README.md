@@ -152,6 +152,8 @@ assert_eq!(reader.next()?, Some('h'));
 | `CharIn::skip(amount)` | Skip `amount` bytes (bit octets) from the input. |
 | `Error<B>` | Backend error, invalid UTF-8 (with offset), or buffer-too-small. |
 | `io::Read` | Byte-source trait; blanket-impl'd for `std::io::Read` on `std`. |
+| `CharIn::fill_buf()` | Zero-copy buffered byte window for slice scanning. |
+| `CharIn::consume(n)` | Advance `n` bytes of the current window (no backend read). |
 
 ## `no_std` support
 
